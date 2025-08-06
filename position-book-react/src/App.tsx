@@ -1,26 +1,40 @@
-import { useState } from "react";
-import PositionTable from "./components/PositionTable";
-import EventForm from "./components/EventForm";
-import { calculatePositions } from "./utils/positionReducer";
-import type { TradeEvent } from "./types";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  Link,
+} from "react-router-dom";
+import { Container, AppBar, Toolbar, Typography, Button } from "@mui/material";
+import EventPage from "./pages/EventPage";
+import PositionPage from "./pages/PositionPage";
 
-const App = () => {
-  const [events, setEvents] = useState<TradeEvent[]>([]);
-
-  const addEvent = (event: TradeEvent) => {
-    setEvents((prev) => [...prev, event]);
-  };
-
-  const positions = calculatePositions(events);
-
+function App() {
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>📘 Position Book UI</h1>
-      <EventForm onAddEvent={addEvent} eventHistory={events} />
-      <hr />
-      <PositionTable positions={positions} />
-    </div>
+    <Router>
+      <AppBar position="static">
+        <Toolbar>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            Position Book
+          </Typography>
+          <Button color="inherit" component={Link} to="/events">
+            Events
+          </Button>
+          <Button color="inherit" component={Link} to="/positions">
+            Positions
+          </Button>
+        </Toolbar>
+      </AppBar>
+
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/events" />} />
+          <Route path="/events" element={<EventPage />} />
+          <Route path="/positions" element={<PositionPage />} />
+        </Routes>
+      </Container>
+    </Router>
   );
-};
+}
 
 export default App;

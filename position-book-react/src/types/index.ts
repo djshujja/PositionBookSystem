@@ -1,16 +1,15 @@
-export type EventType = "BUY" | "SELL" | "CANCEL";
+export type TradeAction = "BUY" | "SELL" | "CANCEL";
 
 export interface TradeEvent {
-  id: string;
+  id: number;
+  action: TradeAction;
   account: string;
-  securityCode: string;
-  type: EventType;
+  security: string;
   quantity: number;
-  targetId?: string; // Used for CANCEL
 }
 
 export interface Position {
   account: string;
-  securityCode: string;
+  security: string;
   quantity: number;
 }

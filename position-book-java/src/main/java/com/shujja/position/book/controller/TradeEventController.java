@@ -6,7 +6,9 @@ import com.shujja.position.book.service.PositionBookService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/trades")
@@ -20,9 +22,14 @@ public class TradeEventController {
     }
 
     @PostMapping
-    public ResponseEntity<Void> receiveEvents(@RequestBody TradeEventRequest request) {
+    public ResponseEntity<Map<String, List<Position>>> receiveEvents(@RequestBody TradeEventRequest request) {
         service.processEvents(request.getEvents());
-        return ResponseEntity.ok().build();
+        List<Position> positions = service.getAllPositions();
+
+        Map<String, List<Position>> response = new HashMap<>();
+        response.put("Positions", positions);
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/positions")
