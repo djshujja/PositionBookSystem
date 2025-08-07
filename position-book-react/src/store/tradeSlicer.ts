@@ -37,17 +37,15 @@ export const fetchPositions = createAsyncThunk<
 
 // POST: Submit one or more trades
 export const postTrade = createAsyncThunk<
-  TradeEvent[], // resolves with the array of events
-  { events: TradeEvent[] }, // argument type
+  TradeEvent[],
+  { events: TradeEvent[] },
   { rejectValue: string }
 >("trades/postTrade", async (payload, { dispatch, rejectWithValue }) => {
   try {
     await axios.post("/trades", payload);
-    // Refresh positions after successful post
     dispatch(fetchPositions());
     return payload.events;
   } catch (err: any) {
-    // Prefer server‐sent `error` field, fall back to `message`
     const serverMsg =
       err.response?.data?.error ||
       err.response?.data?.message ||

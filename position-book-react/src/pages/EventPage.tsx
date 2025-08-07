@@ -1,4 +1,3 @@
-// src/pages/EventPage.tsx
 import React, { useMemo, useState } from "react";
 import {
   Container,

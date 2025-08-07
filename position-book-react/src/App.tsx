@@ -1,6 +1,6 @@
 // src/App.tsx
 import React, { useEffect, useRef } from "react";
-import { Tabs, Tab, Box, Typography, Container } from "@mui/material";
+import { Container } from "@mui/material";
 
 import { useAppDispatch } from "./store/hooks";
 import { fetchPositions } from "./store/tradeSlicer";

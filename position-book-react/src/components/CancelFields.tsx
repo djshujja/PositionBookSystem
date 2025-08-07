@@ -1,4 +1,3 @@
-// src/components/CancelFields.tsx
 import React, { useMemo } from "react";
 import { Box, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import type { FormRow, ValidCancelableEvent } from "../types";

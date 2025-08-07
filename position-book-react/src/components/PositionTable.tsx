@@ -1,4 +1,3 @@
-// src/components/PositionTable.tsx
 import React, { useState } from "react";
 import {
   TableContainer,
@@ -95,9 +94,6 @@ function Row({ position }: { position: Position }) {
                 backgroundColor: theme.palette.grey[50],
               }}
             >
-              <Typography variant="subtitle2" gutterBottom>
-                Events
-              </Typography>
               {!position.events?.length ? (
                 <Typography variant="body2">No events</Typography>
               ) : (
@@ -114,7 +110,7 @@ function Row({ position }: { position: Position }) {
                         px: 2,
                       }}
                     >
-                      <Typography variant="body2">#{e.id}</Typography>
+                      <Typography variant="body2">{e.id}</Typography>
                       <Chip
                         label={e.action}
                         color={color(e.action)}

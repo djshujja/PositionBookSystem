@@ -1,27 +1,22 @@
 import type { Position, TradeEvent } from "../types";
+import axiosInstance from "../api/axiosInstance";
 
-export const postTrades = async (events: TradeEvent[]) => {
-  const response = await fetch("http://localhost:8080/api/trades", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ events }),
-  });
+/**
+ * POST one or more trade events.
+ * @throws Error if the request fails.
+ */
+export async function postTrades(events: TradeEvent[]): Promise<void> {
+  await axiosInstance.post("/trades", { events });
+}
 
-  if (!response.ok) {
-    throw new Error("Failed to post trades");
-  }
-
-  return response.json();
-};
-
-export const getPositions = async (): Promise<Position[]> => {
-  const response = await fetch("http://localhost:8080/api/trades/positions");
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch positions");
-  }
-
-  return response.json();
-};
+/**
+ * GET the current positions.
+ * @returns an array of Position objects.
+ * @throws Error if the request fails.
+ */
+export async function getPositions(): Promise<Position[]> {
+  const response = await axiosInstance.get<{ Positions: Position[] }>(
+    "/trades/positions"
+  );
+  return response.data.Positions;
+}
