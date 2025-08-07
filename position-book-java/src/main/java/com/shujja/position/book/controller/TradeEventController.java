@@ -3,6 +3,7 @@ package com.shujja.position.book.controller;
 import com.shujja.position.book.dto.TradeEventRequest;
 import com.shujja.position.book.model.Position;
 import com.shujja.position.book.service.PositionBookService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +23,8 @@ public class TradeEventController {
     }
 
     @PostMapping
-    public ResponseEntity<Map<String, List<Position>>> receiveEvents(@RequestBody TradeEventRequest request) {
+    public ResponseEntity<Map<String, List<Position>>> receiveEvents(
+            @Valid @RequestBody TradeEventRequest request) {
         service.processEvents(request.getEvents());
         List<Position> positions = service.getAllPositions();
 

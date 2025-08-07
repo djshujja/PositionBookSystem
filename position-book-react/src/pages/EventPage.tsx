@@ -53,12 +53,6 @@ export default function EventPage() {
 
   return (
     <Box>
-      {/* Top Tabs */}
-      <Tabs value={1} sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tab label="Position Summary" onClick={() => navigate("/positions")} />
-        <Tab label="Create Event" />
-      </Tabs>
-
       {/* Main Grid Layout */}
       <Grid container height="calc(100vh - 64px)">
         {/* Left Panel Buttons */}
@@ -89,10 +83,6 @@ export default function EventPage() {
             elevation={3}
             sx={{ p: 4, maxWidth: 600, mx: "auto", position: "relative" }}
           >
-            <Typography variant="h6" mb={2}>
-              FORM CONTENTS HERE
-            </Typography>
-
             <TextField
               fullWidth
               label="Account"

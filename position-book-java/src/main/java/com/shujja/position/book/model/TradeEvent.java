@@ -1,10 +1,23 @@
 package com.shujja.position.book.model;
 
+import jakarta.validation.constraints.*;
+
+
 public class TradeEvent {
+
+    @NotNull
     private int id;
+
+    @NotNull
     private Action action;
+
+    @NotBlank
     private String account;
+
+    @NotBlank
     private String security;
+
+    @PositiveOrZero
     private int quantity;
 
     public TradeEvent() {}
@@ -15,6 +28,10 @@ public class TradeEvent {
         this.account = account;
         this.security = security;
         this.quantity = quantity;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     public int getId() {

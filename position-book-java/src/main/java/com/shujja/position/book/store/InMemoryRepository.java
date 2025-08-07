@@ -9,10 +9,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Repository
 public class InMemoryRepository {
 
+    private final AtomicInteger eventIdCounter = new AtomicInteger(1);
     private final Map<String, Position> positions = new ConcurrentHashMap<>();
     private final Map<Integer, TradeEvent> eventMap = new ConcurrentHashMap<>();
 
@@ -21,6 +23,12 @@ public class InMemoryRepository {
     }
 
     public void addEvent(TradeEvent event, int deltaQty) {
+
+        if (event.getAction() != Action.CANCEL) {
+            // Assign a new ID if it's a BUY or SELL
+            event.setId(eventIdCounter.getAndIncrement());
+        }
+
         String key = getKey(event.getAccount(), event.getSecurity());
 
         positions.computeIfAbsent(key, k -> new Position(event.getAccount(), event.getSecurity()))
