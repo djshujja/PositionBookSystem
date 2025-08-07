@@ -1,22 +1,21 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
-import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { Provider } from "react-redux";
+import { ThemeProvider, CssBaseline } from "@mui/material";
+import App from "./App";
+import theme from "./theme";
 import { store } from "./store";
 
-const theme = createTheme({
-  palette: {
-    mode: "light",
-    primary: { main: "#1976d2" },
-    secondary: { main: "#dc004e" },
-  },
-});
+const root = ReactDOM.createRoot(
+  document.getElementById("root") as HTMLElement
+);
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+root.render(
   <React.StrictMode>
     <Provider store={store}>
       <ThemeProvider theme={theme}>
+        {/* Normalize CSS & apply global styles */}
+        <CssBaseline />
         <App />
       </ThemeProvider>
     </Provider>

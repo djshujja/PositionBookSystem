@@ -1,278 +1,214 @@
-import React, { useMemo, useState, useEffect } from "react";
+// src/pages/EventPage.tsx
+
+import React, { useMemo, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Container,
-  MenuItem,
-  Select,
-  TextField,
-  Typography,
-  ToggleButtonGroup,
-  ToggleButton,
-  InputLabel,
-  FormControl,
+  Divider,
+  IconButton,
+  Paper,
   Snackbar,
-  Alert,
+  Typography,
 } from "@mui/material";
+import { Add, Delete } from "@mui/icons-material";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { postTrade } from "../store/tradeSlicer";
-import type { TradeAction, TradeEvent, Position } from "../types";
-
-interface CancelableEvent extends TradeEvent {
-  account: string;
-  security: string;
-}
+import type { FormRow, ValidCancelableEvent, TradeEvent } from "../types";
+import ActionSegment from "../components/ActionSegment";
+import BuySellFields from "../components/BuySellFields";
+import CancelFields from "../components/CancelFields";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { validateRows } from "../utils/validation";
 
 const EventPage: React.FC = () => {
   const dispatch = useAppDispatch();
-  const positions: Position[] = useAppSelector(
-    (state) => state.trades.positions
-  );
-  const [action, setAction] = useState<TradeAction>("BUY");
-  const [account, setAccount] = useState("");
-  const [security, setSecurity] = useState("");
-  const [quantity, setQuantity] = useState<number>(0);
-  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+  const positions = useAppSelector((s) => s.trades.positions);
 
-  const [snackOpen, setSnackOpen] = useState(false);
-  const [snackMsg, setSnackMsg] = useState("");
-  const [snackSeverity, setSnackSeverity] = useState<"success" | "error">(
-    "success"
-  );
-
-  const allEvents: CancelableEvent[] = useMemo(
-    () =>
-      positions.flatMap((pos) =>
-        (pos.events || []).map((e) => ({
-          ...e,
-          account: pos.account,
-          security: pos.security,
-        }))
-      ),
-    [positions]
-  );
-
-  const canceledIds = useMemo(
-    () =>
-      new Set(allEvents.filter((e) => e.action === "CANCEL").map((e) => e.id)),
-    [allEvents]
-  );
-
-  const cancelableEvents = useMemo(
-    () =>
-      allEvents.filter(
-        (e) =>
-          (e.action === "BUY" || e.action === "SELL") && !canceledIds.has(e.id)
-      ),
-    [allEvents, canceledIds]
-  );
-
-  const accounts = useMemo(
-    () => Array.from(new Set(cancelableEvents.map((e) => e.account))),
-    [cancelableEvents]
-  );
-
-  const securities = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          cancelableEvents
-            .filter((e) => e.account === account)
-            .map((e) => e.security)
-        )
-      ),
-    [cancelableEvents, account]
-  );
-
-  const matchingEvents = useMemo(
-    () =>
-      cancelableEvents.filter(
-        (e) => e.account === account && e.security === security
-      ),
-    [cancelableEvents, account, security]
-  );
-
-  // Helper to find current position quantity
-  const availableQty = useMemo(() => {
-    const pos = positions.find(
-      (p) => p.account === account && p.security === security
+  const validCancelableEvents = useMemo<ValidCancelableEvent[]>(() => {
+    const all = positions.flatMap((pos) =>
+      (pos.events || []).map((e) => ({
+        ...e,
+        account: pos.account,
+        security: pos.security,
+      }))
     );
-    return pos?.quantity ?? 0;
-  }, [positions, account, security]);
+    const canceled = new Set(
+      all.filter((e) => e.action === "CANCEL").map((e) => e.id!)
+    );
+    return all
+      .filter(
+        (e) =>
+          (e.action === "BUY" || e.action === "SELL") &&
+          e.id != null &&
+          !canceled.has(e.id)
+      )
+      .filter((e): e is ValidCancelableEvent => e.id != null);
+  }, [positions]);
 
-  const handleSubmit = async () => {
-    if (action === "SELL" && quantity > availableQty) {
-      setSnackMsg(`Cannot sell ${quantity}; only ${availableQty} available.`);
-      setSnackSeverity("error");
-      setSnackOpen(true);
-      return;
-    }
+  const [rows, setRows] = useState<FormRow[]>([
+    {
+      key: 0,
+      action: "BUY",
+      account: "",
+      security: "",
+      quantity: 0,
+      cancelId: null,
+    },
+  ]);
+  const [nextKey, setNextKey] = useState(1);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [snack, setSnack] = useState<{
+    open: boolean;
+    msg: string;
+    sev: "success" | "error";
+  }>({
+    open: false,
+    msg: "",
+    sev: "success",
+  });
 
-    // Build payload
-    const payload: TradeEvent =
-      action === "CANCEL"
+  const addRow = () => {
+    setRows((r) => [
+      ...r,
+      {
+        key: nextKey,
+        action: "BUY",
+        account: "",
+        security: "",
+        quantity: 0,
+        cancelId: null,
+      },
+    ]);
+    setNextKey((k) => k + 1);
+  };
+  const updateRow = (key: number, changes: Partial<FormRow>) =>
+    setRows((r) =>
+      r.map((row) => (row.key === key ? { ...row, ...changes } : row))
+    );
+  const removeRow = (key: number) =>
+    setRows((r) => r.filter((row) => row.key !== key));
+
+  const handlePreview = () => {
+    const err = validateRows(rows);
+    if (err) return setSnack({ open: true, msg: err, sev: "error" });
+    setPreviewOpen(true);
+  };
+
+  const handleConfirm = async () => {
+    setPreviewOpen(false);
+    const payload: TradeEvent[] = rows.map((row) =>
+      row.action === "CANCEL"
         ? {
-            id: selectedEventId!,
-            action,
-            account,
-            security,
-            quantity: 0,
+            id: row.cancelId!,
+            action: "CANCEL",
+            account: row.account,
+            security: row.security,
+            quantity:
+              validCancelableEvents.find((e) => e.id === row.cancelId)
+                ?.quantity ?? 0,
           }
         : {
-            id: 0,
-            action,
-            account,
-            security,
-            quantity,
-          };
-
+            id: null,
+            action: row.action,
+            account: row.account,
+            security: row.security,
+            quantity: row.quantity,
+          }
+    );
     try {
-      await dispatch(postTrade({ events: [payload] })).unwrap();
-      setSnackMsg("Event submitted successfully!");
-      setSnackSeverity("success");
-      setSnackOpen(true);
-      // reset form
-      setAccount("");
-      setSecurity("");
-      setQuantity(0);
-      setSelectedEventId(null);
+      await dispatch(postTrade({ events: payload })).unwrap();
+      setSnack({ open: true, msg: "Events submitted!", sev: "success" });
+      setRows([
+        {
+          key: nextKey,
+          action: "BUY",
+          account: "",
+          security: "",
+          quantity: 0,
+          cancelId: null,
+        },
+      ]);
+      setNextKey((k) => k + 1);
     } catch (err: any) {
-      setSnackMsg(err || "Submission failed");
-      setSnackSeverity("error");
-      setSnackOpen(true);
+      setSnack({ open: true, msg: err || "Submission failed", sev: "error" });
     }
   };
 
   return (
     <Container maxWidth="sm">
-      <Box sx={{ mt: 4, display: "flex", flexDirection: "column", gap: 3 }}>
-        <Typography variant="h5">Create Trade Event</Typography>
+      <Typography variant="h5" gutterBottom>
+        Create Trade Events
+      </Typography>
 
-        <ToggleButtonGroup
-          color="primary"
-          value={action}
-          exclusive
-          onChange={(_, newAction) => {
-            if (newAction) {
-              setAction(newAction);
-              setAccount("");
-              setSecurity("");
-              setQuantity(0);
-              setSelectedEventId(null);
+      {rows.map((row) => (
+        <Paper key={row.key} sx={{ p: 2, pt: 4, mb: 2, position: "relative" }}>
+          <IconButton
+            size="small"
+            sx={{ position: "absolute", top: 8, right: 8 }}
+            onClick={() => removeRow(row.key)}
+          >
+            <Delete fontSize="small" />
+          </IconButton>
+
+          <ActionSegment
+            value={row.action}
+            onChange={(action) =>
+              updateRow(row.key, {
+                action,
+                account: "",
+                security: "",
+                quantity: 0,
+                cancelId: null,
+              })
             }
-          }}
-        >
-          <ToggleButton value="BUY">Buy</ToggleButton>
-          <ToggleButton value="SELL">Sell</ToggleButton>
-          <ToggleButton value="CANCEL">Cancel</ToggleButton>
-        </ToggleButtonGroup>
+          />
 
-        {action === "CANCEL" ? (
-          <>
-            <FormControl fullWidth>
-              <InputLabel>Account</InputLabel>
-              <Select
-                value={account}
-                label="Account"
-                onChange={(e) => setAccount(e.target.value)}
-              >
-                {accounts.map((acc) => (
-                  <MenuItem key={acc} value={acc}>
-                    {acc}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            {account && (
-              <FormControl fullWidth>
-                <InputLabel>Security</InputLabel>
-                <Select
-                  value={security}
-                  label="Security"
-                  onChange={(e) => setSecurity(e.target.value)}
-                >
-                  {securities.map((sec) => (
-                    <MenuItem key={sec} value={sec}>
-                      {sec}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-
-            {account && security && (
-              <FormControl fullWidth>
-                <InputLabel>Event to Cancel</InputLabel>
-                <Select
-                  value={selectedEventId ?? ""}
-                  label="Event to Cancel"
-                  onChange={(e) => setSelectedEventId(Number(e.target.value))}
-                >
-                  {matchingEvents.map((e) => (
-                    <MenuItem key={e.id} value={e.id}>
-                      #{e.id} — {e.action} {e.quantity}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-          </>
-        ) : (
-          <>
-            <TextField
-              fullWidth
-              label="Account"
-              value={account}
-              onChange={(e) => setAccount(e.target.value)}
+          {row.action !== "CANCEL" ? (
+            <BuySellFields row={row} onChange={(c) => updateRow(row.key, c)} />
+          ) : (
+            <CancelFields
+              row={row}
+              validEvents={validCancelableEvents}
+              onChange={(c) => updateRow(row.key, c)}
             />
-            <TextField
-              fullWidth
-              label="Security"
-              value={security}
-              onChange={(e) => setSecurity(e.target.value)}
-            />
-            <TextField
-              fullWidth
-              label="Quantity"
-              type="number"
-              value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value))}
-              error={action === "SELL" && quantity > availableQty}
-              helperText={
-                action === "SELL" && quantity > availableQty
-                  ? `Max available to sell is ${availableQty}`
-                  : ""
-              }
-            />
-          </>
-        )}
+          )}
+        </Paper>
+      ))}
 
-        <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={
-            action === "CANCEL"
-              ? !(account && security && selectedEventId !== null)
-              : !(account && security && quantity > 0)
-          }
-        >
-          Submit
+      <Box display="flex" gap={2} mb={3}>
+        <Button startIcon={<Add />} onClick={addRow}>
+          Add Event
         </Button>
+        <Divider orientation="vertical" flexItem />
+        {rows.length > 0 && (
+          <Button variant="contained" onClick={handlePreview}>
+            Preview & Confirm
+          </Button>
+        )}
       </Box>
 
+      <ConfirmDialog
+        open={previewOpen}
+        rows={rows}
+        validEvents={validCancelableEvents}
+        onClose={() => setPreviewOpen(false)}
+        onConfirm={handleConfirm}
+      />
+
       <Snackbar
-        open={snackOpen}
+        open={snack.open}
         autoHideDuration={3000}
-        onClose={() => setSnackOpen(false)}
+        onClose={() => setSnack((s) => ({ ...s, open: false }))}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
-          onClose={() => setSnackOpen(false)}
-          severity={snackSeverity}
+          onClose={() => setSnack((s) => ({ ...s, open: false }))}
+          severity={snack.sev}
           sx={{ width: "100%" }}
         >
-          {snackMsg}
+          {snack.msg}
         </Alert>
       </Snackbar>
     </Container>

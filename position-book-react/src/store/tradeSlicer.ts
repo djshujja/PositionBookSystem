@@ -15,6 +15,7 @@ const initialState: TradeState = {
   error: null,
 };
 
+// GET: Fetch positions (unwraps the "Positions" array)
 export const fetchPositions = createAsyncThunk<
   Position[],
   void,
@@ -26,21 +27,32 @@ export const fetchPositions = createAsyncThunk<
     );
     return response.data.Positions;
   } catch (err: any) {
-    return rejectWithValue("Failed to fetch positions");
+    return rejectWithValue(
+      err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Failed to fetch positions"
+    );
   }
 });
 
+// POST: Submit one or more trades
 export const postTrade = createAsyncThunk<
-  TradeEvent[], // payload.events[]
-  { events: TradeEvent[] },
+  TradeEvent[], // resolves with the array of events
+  { events: TradeEvent[] }, // argument type
   { rejectValue: string }
 >("trades/postTrade", async (payload, { dispatch, rejectWithValue }) => {
   try {
     await axios.post("/trades", payload);
+    // Refresh positions after successful post
     dispatch(fetchPositions());
     return payload.events;
   } catch (err: any) {
-    return rejectWithValue("Failed to post trade");
+    // Prefer server‐sent `error` field, fall back to `message`
+    const serverMsg =
+      err.response?.data?.error ||
+      err.response?.data?.message ||
+      "Failed to post trade";
+    return rejectWithValue(serverMsg);
   }
 });
 
@@ -59,23 +71,28 @@ const tradeSlice = createSlice({
         fetchPositions.fulfilled,
         (state, action: PayloadAction<Position[]>) => {
           state.loading = false;
-          state.positions = action.payload; // now an array
+          state.positions = action.payload;
         }
       )
       .addCase(fetchPositions.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
+
       // POST TRADE
-      .addCase(postTrade.rejected, (state, action) => {
-        state.error = action.payload as string;
+      .addCase(postTrade.pending, (state) => {
+        state.error = null;
       })
       .addCase(
         postTrade.fulfilled,
         (state, action: PayloadAction<TradeEvent[]>) => {
           state.events.push(...action.payload);
         }
-      );
+      )
+      .addCase(postTrade.rejected, (state, action) => {
+        state.error = action.payload as string;
+      });
   },
 });
+
 export default tradeSlice.reducer;
