@@ -16,6 +16,7 @@ const initialState: TradeState = {
   error: null,
 };
 
+// GET: Fetch positions
 export const fetchPositions = createAsyncThunk(
   "trades/fetchPositions",
   async (_, { rejectWithValue }) => {
@@ -28,18 +29,20 @@ export const fetchPositions = createAsyncThunk(
   }
 );
 
-export const postTrade = createAsyncThunk(
-  "trades/postTrade",
-  async (event: TradeEvent, { dispatch, rejectWithValue }) => {
-    try {
-      await axios.post("/trades", { events: [event] });
-      dispatch(fetchPositions());
-      return event;
-    } catch (err: any) {
-      return rejectWithValue("Failed to post trade");
-    }
+// POST: Submit one or more trades
+export const postTrade = createAsyncThunk<
+  TradeEvent[], // ✅ Return type: array of events
+  { events: TradeEvent[] }, // ✅ Accepts: { events: [...] }
+  { rejectValue: string }
+>("trades/postTrade", async (payload, { dispatch, rejectWithValue }) => {
+  try {
+    await axios.post("/trades", payload);
+    dispatch(fetchPositions());
+    return payload.events;
+  } catch (err: any) {
+    return rejectWithValue("Failed to post trade");
   }
-);
+});
 
 const tradeSlice = createSlice({
   name: "trades",
@@ -65,9 +68,12 @@ const tradeSlice = createSlice({
       .addCase(postTrade.rejected, (state, action) => {
         state.error = action.payload as string;
       })
-      .addCase(postTrade.fulfilled, (state, action) => {
-        state.events.push(action.payload);
-      });
+      .addCase(
+        postTrade.fulfilled,
+        (state, action: PayloadAction<TradeEvent[]>) => {
+          state.events.push(...action.payload);
+        }
+      );
   },
 });
 

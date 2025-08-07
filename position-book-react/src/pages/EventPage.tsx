@@ -1,119 +1,227 @@
-import { useState } from "react";
-import type { TradeAction, TradeEvent } from "../types";
-import { useAppDispatch } from "../store/hooks";
-import { postTrade } from "../store/tradeSlicer";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Button,
-  GridLegacy as Grid,
-  Paper,
+  Container,
+  MenuItem,
+  Select,
   TextField,
   Typography,
-  Tabs,
-  Tab,
+  ToggleButtonGroup,
+  ToggleButton,
+  InputLabel,
+  FormControl,
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import { postTrade } from "../store/tradeSlicer";
+import { TradeAction, TradeEvent, Position } from "../types";
 
-let eventId = 1;
+// Extend TradeEvent with account + security
+interface CancelableEvent extends TradeEvent {
+  account: string;
+  security: string;
+}
 
-export default function EventPage() {
+const EventPage: React.FC = () => {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
+  const positions: Position[] = useAppSelector(
+    (state) => state.trades.positions
+  ); // ✅ FIXED
 
-  const [form, setForm] = useState<Partial<TradeEvent>>({
-    action: "BUY",
-  });
+  const [action, setAction] = useState<TradeAction>("BUY");
+  const [account, setAccount] = useState("");
+  const [security, setSecurity] = useState("");
+  const [quantity, setQuantity] = useState<number>(0);
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
-  const handleChange =
-    (field: keyof TradeEvent) => (e: React.ChangeEvent<HTMLInputElement>) => {
-      setForm({
-        ...form,
-        [field]: field === "quantity" ? Number(e.target.value) : e.target.value,
-      });
-    };
+  // 🔁 Flatten all events with their parent account/security
+  const allEvents: CancelableEvent[] = useMemo(() => {
+    return positions.flatMap((pos: Position) =>
+      (pos.events || []).map((event: TradeEvent) => ({
+        ...event,
+        account: pos.account,
+        security: pos.security,
+      }))
+    );
+  }, [positions]);
 
-  const handleSubmit = async () => {
-    if (
-      form.action &&
-      form.account &&
-      form.security &&
-      form.quantity !== undefined
-    ) {
-      const trade: TradeEvent = {
-        id: eventId++,
-        action: form.action,
-        account: form.account,
-        security: form.security,
-        quantity: form.quantity,
-      };
-      await dispatch(postTrade(trade));
-      navigate("/positions");
-    }
+  // 🛑 Collect canceled event IDs
+  const canceledIds = useMemo(() => {
+    return new Set<number>(
+      allEvents.filter((e) => e.action === "CANCEL").map((e) => e.id)
+    );
+  }, [allEvents]);
+
+  // ✅ Filter only BUY/SELL events not already canceled
+  const cancelableEvents: CancelableEvent[] = useMemo(() => {
+    return allEvents.filter(
+      (e) =>
+        (e.action === "BUY" || e.action === "SELL") && !canceledIds.has(e.id)
+    );
+  }, [allEvents, canceledIds]);
+
+  // 📌 Dropdown options
+  const accounts = useMemo(() => {
+    return Array.from(new Set(cancelableEvents.map((e) => e.account)));
+  }, [cancelableEvents]);
+
+  const securities = useMemo(() => {
+    return Array.from(
+      new Set(
+        cancelableEvents
+          .filter((e) => e.account === account)
+          .map((e) => e.security)
+      )
+    );
+  }, [cancelableEvents, account]);
+
+  const matchingEvents = useMemo(() => {
+    return cancelableEvents.filter(
+      (e) => e.account === account && e.security === security
+    );
+  }, [cancelableEvents, account, security]);
+
+  // 🚀 Submit trade (BUY, SELL, CANCEL)
+  const handleSubmit = () => {
+    const payload: TradeEvent =
+      action === "CANCEL"
+        ? {
+            id: selectedEventId!,
+            action: "CANCEL",
+            account,
+            security,
+            quantity: 0,
+          }
+        : {
+            id: 0, // placeholder, backend will assign
+            action,
+            account,
+            security,
+            quantity,
+          };
+
+    dispatch(postTrade({ events: [payload] }));
+
+    // Reset form
+    setAccount("");
+    setSecurity("");
+    setQuantity(0);
+    setSelectedEventId(null);
   };
 
   return (
-    <Box>
-      {/* Main Grid Layout */}
-      <Grid container height="calc(100vh - 64px)">
-        {/* Left Panel Buttons */}
-        <Grid item xs={2} sx={{ borderRight: "1px solid #ccc", p: 2 }}>
-          {["Buy", "Sell", "Cancel"].map((action) => (
-            <Button
-              key={action}
-              variant={
-                form.action === action.toUpperCase() ? "contained" : "outlined"
-              }
-              fullWidth
-              onClick={() =>
-                setForm({
-                  ...form,
-                  action: action.toUpperCase() as TradeAction,
-                })
-              }
-              sx={{ mb: 2 }}
-            >
-              {action}
-            </Button>
-          ))}
-        </Grid>
+    <Container maxWidth="sm">
+      <Box sx={{ mt: 4, display: "flex", flexDirection: "column", gap: 3 }}>
+        <Typography variant="h5">Create Trade Event</Typography>
 
-        {/* Form Area */}
-        <Grid item xs={10} p={4}>
-          <Paper
-            elevation={3}
-            sx={{ p: 4, maxWidth: 600, mx: "auto", position: "relative" }}
-          >
+        <ToggleButtonGroup
+          color="primary"
+          value={action}
+          exclusive
+          onChange={(_, newAction) => {
+            if (newAction) {
+              setAction(newAction);
+              setAccount("");
+              setSecurity("");
+              setSelectedEventId(null);
+              setQuantity(0);
+            }
+          }}
+        >
+          <ToggleButton value="BUY">Buy</ToggleButton>
+          <ToggleButton value="SELL">Sell</ToggleButton>
+          <ToggleButton value="CANCEL">Cancel</ToggleButton>
+        </ToggleButtonGroup>
+
+        {action === "CANCEL" ? (
+          <>
+            <FormControl fullWidth>
+              <InputLabel>Account</InputLabel>
+              <Select
+                label="Account"
+                value={account}
+                onChange={(e) => setAccount(e.target.value)}
+              >
+                {accounts.map((acc) => (
+                  <MenuItem key={acc} value={acc}>
+                    {acc}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {account && (
+              <FormControl fullWidth>
+                <InputLabel>Security</InputLabel>
+                <Select
+                  label="Security"
+                  value={security}
+                  onChange={(e) => setSecurity(e.target.value)}
+                >
+                  {securities.map((sec) => (
+                    <MenuItem key={sec} value={sec}>
+                      {sec}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {account && security && (
+              <FormControl fullWidth>
+                <InputLabel>Event to Cancel</InputLabel>
+                <Select
+                  label="Event to Cancel"
+                  value={selectedEventId ?? ""}
+                  onChange={(e) => setSelectedEventId(Number(e.target.value))}
+                >
+                  {matchingEvents.map((e) => (
+                    <MenuItem key={e.id} value={e.id}>
+                      #{e.id} — {e.action} {e.quantity}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+          </>
+        ) : (
+          <>
             <TextField
               fullWidth
               label="Account"
-              value={form.account || ""}
-              onChange={handleChange("account")}
-              sx={{ mb: 2 }}
+              value={account}
+              onChange={(e) => setAccount(e.target.value)}
             />
             <TextField
               fullWidth
               label="Security"
-              value={form.security || ""}
-              onChange={handleChange("security")}
-              sx={{ mb: 2 }}
+              value={security}
+              onChange={(e) => setSecurity(e.target.value)}
             />
             <TextField
               fullWidth
-              type="number"
               label="Quantity"
-              value={form.quantity || ""}
-              onChange={handleChange("quantity")}
-              sx={{ mb: 2 }}
+              type="number"
+              value={quantity}
+              onChange={(e) => setQuantity(Number(e.target.value))}
             />
+          </>
+        )}
 
-            <Box display="flex" justifyContent="flex-end">
-              <Button variant="contained" onClick={handleSubmit}>
-                Submit
-              </Button>
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
-    </Box>
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={
+            action === "CANCEL"
+              ? !(account && security && selectedEventId)
+              : !(account && security && quantity > 0)
+          }
+        >
+          Submit
+        </Button>
+      </Box>
+    </Container>
   );
-}
+};
+
+export default EventPage;
