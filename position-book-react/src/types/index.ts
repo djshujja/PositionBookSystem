@@ -12,4 +12,5 @@ export interface Position {
   account: string;
   security: string;
   quantity: number;
+  events?: TradeEvent[];
 }
