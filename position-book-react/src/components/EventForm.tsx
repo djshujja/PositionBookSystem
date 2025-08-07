@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { TradeAction, TradeEvent } from "../types";
+import type { TradeEvent } from "../types";
 import { Box, Button, MenuItem, TextField, Typography } from "@mui/material";
 
 interface Props {

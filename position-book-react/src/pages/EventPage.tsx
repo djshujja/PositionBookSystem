@@ -1,16 +1,15 @@
 // src/pages/EventPage.tsx
-
 import React, { useMemo, useState } from "react";
 import {
-  Alert,
+  Container,
+  Typography,
+  GridLegacy as Grid,
+  Paper,
+  IconButton,
   Box,
   Button,
-  Container,
-  Divider,
-  IconButton,
-  Paper,
   Snackbar,
-  Typography,
+  Alert,
 } from "@mui/material";
 import { Add, Delete } from "@mui/icons-material";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
@@ -22,7 +21,7 @@ import CancelFields from "../components/CancelFields";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { validateRows } from "../utils/validation";
 
-const EventPage: React.FC = () => {
+export default function EventPage() {
   const dispatch = useAppDispatch();
   const positions = useAppSelector((s) => s.trades.positions);
 
@@ -63,11 +62,7 @@ const EventPage: React.FC = () => {
     open: boolean;
     msg: string;
     sev: "success" | "error";
-  }>({
-    open: false,
-    msg: "",
-    sev: "success",
-  });
+  }>({ open: false, msg: "", sev: "success" });
 
   const addRow = () => {
     setRows((r) => [
@@ -92,7 +87,10 @@ const EventPage: React.FC = () => {
 
   const handlePreview = () => {
     const err = validateRows(rows);
-    if (err) return setSnack({ open: true, msg: err, sev: "error" });
+    if (err) {
+      setSnack({ open: true, msg: err, sev: "error" });
+      return;
+    }
     setPreviewOpen(true);
   };
 
@@ -102,6 +100,7 @@ const EventPage: React.FC = () => {
       row.action === "CANCEL"
         ? {
             id: row.cancelId!,
+            uid: undefined,
             action: "CANCEL",
             account: row.account,
             security: row.security,
@@ -111,6 +110,7 @@ const EventPage: React.FC = () => {
           }
         : {
             id: null,
+            uid: undefined,
             action: row.action,
             account: row.account,
             security: row.security,
@@ -138,57 +138,66 @@ const EventPage: React.FC = () => {
 
   return (
     <Container maxWidth="sm">
-      <Typography variant="h5" gutterBottom>
+      <Typography variant="h5" sx={{ mb: 3 }}>
         Create Trade Events
       </Typography>
-
-      {rows.map((row) => (
-        <Paper key={row.key} sx={{ p: 2, pt: 4, mb: 2, position: "relative" }}>
-          <IconButton
-            size="small"
-            sx={{ position: "absolute", top: 8, right: 8 }}
-            onClick={() => removeRow(row.key)}
-          >
-            <Delete fontSize="small" />
-          </IconButton>
-
-          <ActionSegment
-            value={row.action}
-            onChange={(action) =>
-              updateRow(row.key, {
-                action,
-                account: "",
-                security: "",
-                quantity: 0,
-                cancelId: null,
-              })
-            }
-          />
-
-          {row.action !== "CANCEL" ? (
-            <BuySellFields row={row} onChange={(c) => updateRow(row.key, c)} />
-          ) : (
-            <CancelFields
-              row={row}
-              validEvents={validCancelableEvents}
-              onChange={(c) => updateRow(row.key, c)}
-            />
-          )}
-        </Paper>
-      ))}
-
-      <Box display="flex" gap={2} mb={3}>
-        <Button startIcon={<Add />} onClick={addRow}>
+      <Grid container spacing={2}>
+        {rows.map((row) => (
+          <Grid item xs={12} key={row.key}>
+            <Paper variant="outlined" sx={{ position: "relative", p: 2 }}>
+              <IconButton
+                size="small"
+                sx={{ position: "absolute", top: 8, right: 8 }}
+                onClick={() => removeRow(row.key)}
+              >
+                <Delete fontSize="small" />
+              </IconButton>
+              <ActionSegment
+                value={row.action}
+                onChange={(action) => {
+                  if (action === "CANCEL") {
+                    updateRow(row.key, {
+                      action,
+                      account: "",
+                      security: "",
+                      quantity: 0,
+                      cancelId: null,
+                    });
+                  } else {
+                    updateRow(row.key, { action, cancelId: null });
+                  }
+                }}
+              />
+              <Box sx={{ mt: 2 }}>
+                {row.action !== "CANCEL" ? (
+                  <BuySellFields
+                    row={row}
+                    onChange={(c) => updateRow(row.key, c)}
+                  />
+                ) : (
+                  <CancelFields
+                    row={row}
+                    validEvents={validCancelableEvents}
+                    onChange={(c) => updateRow(row.key, c)}
+                  />
+                )}
+              </Box>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
+      <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
+        <Button variant="outlined" startIcon={<Add />} onClick={addRow}>
           Add Event
         </Button>
-        <Divider orientation="vertical" flexItem />
-        {rows.length > 0 && (
-          <Button variant="contained" onClick={handlePreview}>
-            Preview & Confirm
-          </Button>
-        )}
+        <Button
+          variant="contained"
+          onClick={handlePreview}
+          disabled={!rows.length}
+        >
+          Preview & Confirm
+        </Button>
       </Box>
-
       <ConfirmDialog
         open={previewOpen}
         rows={rows}
@@ -196,7 +205,6 @@ const EventPage: React.FC = () => {
         onClose={() => setPreviewOpen(false)}
         onConfirm={handleConfirm}
       />
-
       <Snackbar
         open={snack.open}
         autoHideDuration={3000}
@@ -213,6 +221,4 @@ const EventPage: React.FC = () => {
       </Snackbar>
     </Container>
   );
-};
-
-export default EventPage;
+}

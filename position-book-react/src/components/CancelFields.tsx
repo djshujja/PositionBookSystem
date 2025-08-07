@@ -1,12 +1,6 @@
+// src/components/CancelFields.tsx
 import React, { useMemo } from "react";
-import {
-  Box,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  TextField,
-} from "@mui/material";
+import { Box, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import type { FormRow, ValidCancelableEvent } from "../types";
 
 interface Props {
@@ -15,12 +9,11 @@ interface Props {
   onChange: (changes: Partial<FormRow>) => void;
 }
 
-const CancelFields: React.FC<Props> = ({ row, validEvents, onChange }) => {
+export default function CancelFields({ row, validEvents, onChange }: Props) {
   const accounts = useMemo(
     () => Array.from(new Set(validEvents.map((e) => e.account))),
     [validEvents]
   );
-
   const securities = useMemo(
     () =>
       row.account
@@ -34,7 +27,6 @@ const CancelFields: React.FC<Props> = ({ row, validEvents, onChange }) => {
         : [],
     [validEvents, row.account]
   );
-
   const events = useMemo(
     () =>
       row.account && row.security
@@ -44,7 +36,6 @@ const CancelFields: React.FC<Props> = ({ row, validEvents, onChange }) => {
         : [],
     [validEvents, row.account, row.security]
   );
-
   const selected = events.find((e) => e.id === row.cancelId);
 
   return (
@@ -95,23 +86,12 @@ const CancelFields: React.FC<Props> = ({ row, validEvents, onChange }) => {
           >
             {events.map((evt) => (
               <MenuItem key={evt.id} value={evt.id}>
-                #{evt.id} — {evt.action} {evt.quantity}
+                ID: {evt.id} - Quantity: {evt.quantity}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
       )}
-
-      {!!selected && (
-        <TextField
-          label="Original Qty"
-          value={selected.quantity}
-          InputProps={{ readOnly: true }}
-          sx={{ width: 120 }}
-        />
-      )}
     </Box>
   );
-};
-
-export default CancelFields;
+}

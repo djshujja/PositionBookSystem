@@ -1,40 +1,23 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Box, Tabs, Tab, Typography } from "@mui/material";
+import { Box, Tabs, Tab } from "@mui/material";
 
-const tabConfig = [
-  { label: "Positions", path: "/positions" },
-  { label: "Events", path: "/events" },
-];
-
-const NavigationTabs: React.FC = () => {
+function NavigationTabs() {
   const location = useLocation();
   const navigate = useNavigate();
-
-  const currentTab = tabConfig.findIndex((t) =>
-    location.pathname.startsWith(t.path)
-  );
-
-  const handleChange = (_: React.SyntheticEvent, newValue: number) => {
-    navigate(tabConfig[newValue].path);
-  };
-
+  const currentTab = location.pathname === "/positions" ? 0 : 1;
   return (
-    <Box component="header" sx={{ borderBottom: 1, borderColor: "divider" }}>
-      <Box sx={{ px: 2, pt: 2 }}>
-        <Typography variant="h6">Position Book</Typography>
-      </Box>
+    <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
       <Tabs
-        value={currentTab !== -1 ? currentTab : 0}
-        onChange={handleChange}
+        value={currentTab}
+        onChange={(_, v) => navigate(v === 0 ? "/positions" : "/events")}
         centered
       >
-        {tabConfig.map((tab) => (
-          <Tab key={tab.path} label={tab.label} />
-        ))}
+        <Tab label="Positions" />
+        <Tab label="Events" />
       </Tabs>
     </Box>
   );
-};
+}
 
 export default NavigationTabs;

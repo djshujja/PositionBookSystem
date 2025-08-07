@@ -24,12 +24,10 @@ public class TradeEventController {
 
     @PostMapping
     public ResponseEntity<Map<String, List<Position>>> receiveEvents(
-            @Valid @RequestBody TradeEventRequest request
-    ) {
+            @Valid @RequestBody TradeEventRequest request) {
         List<Position> positions = service.processEvents(request.getEvents());
-        Map<String, List<Position>> body = new HashMap<>();
-        body.put("Positions", positions);
-        return ResponseEntity.ok(body);
+        Map<String,List<Position>> resp = Map.of("Positions", positions);
+        return ResponseEntity.ok(resp);
     }
 
     @GetMapping("/positions")

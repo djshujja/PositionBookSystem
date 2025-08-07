@@ -1,123 +1,129 @@
 // src/components/PositionTable.tsx
-
 import React, { useState } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
   TableContainer,
+  Paper,
+  Table,
   TableHead,
   TableRow,
+  TableCell,
+  TableBody,
   IconButton,
   Collapse,
   Box,
   Typography,
-  Paper,
+  List,
+  ListItem,
   Chip,
-  Divider,
+  useTheme,
 } from "@mui/material";
 import { KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material";
 import type { Position, TradeEvent } from "../types";
 
-interface Props {
+export default function PositionTable({
+  positions,
+}: {
   positions: Position[];
+}) {
+  const theme = useTheme();
+  return (
+    <TableContainer component={Paper} sx={{ mt: 3, border: 1 }}>
+      <Table>
+        <TableHead>
+          <TableRow
+            sx={{
+              backgroundColor: theme.palette.primary.main,
+            }}
+          >
+            <TableCell sx={{ color: theme.palette.common.white }}>
+              Account
+            </TableCell>
+            <TableCell sx={{ color: theme.palette.common.white }}>
+              Security
+            </TableCell>
+            <TableCell sx={{ color: theme.palette.common.white }}>
+              Quantity
+            </TableCell>
+            <TableCell align="right" sx={{ color: theme.palette.common.white }}>
+              Details
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {positions.map((pos) => (
+            <Row key={`${pos.account}-${pos.security}`} position={pos} />
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
 }
 
-const PositionTable: React.FC<Props> = ({ positions }) => (
-  <TableContainer component={Paper} sx={{ mt: 3 }}>
-    <Table>
-      <TableHead>
-        <TableRow>
-          <TableCell>Account</TableCell>
-          <TableCell>Security</TableCell>
-          <TableCell>Quantity</TableCell>
-          <TableCell align="right">Details</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {positions.map((pos) => (
-          <ExpandableRow
-            key={`${pos.account}-${pos.security}`}
-            position={pos}
-          />
-        ))}
-      </TableBody>
-    </Table>
-  </TableContainer>
-);
-
-const ExpandableRow: React.FC<{ position: Position }> = ({ position }) => {
+function Row({ position }: { position: Position }) {
+  const theme = useTheme();
   const [open, setOpen] = useState(false);
-
-  const getChipColor = (action: string) => {
-    switch (action) {
-      case "BUY":
-        return "success";
-      case "SELL":
-        return "warning";
-      case "CANCEL":
-        return "error";
-      default:
-        return "default";
-    }
-  };
+  const color = (action: string) =>
+    action === "BUY" ? "success" : action === "SELL" ? "warning" : "error";
 
   return (
     <>
-      <TableRow hover>
+      <TableRow
+        hover
+        sx={
+          open
+            ? {
+                backgroundColor: theme.palette.grey[100],
+              }
+            : undefined
+        }
+      >
         <TableCell>{position.account}</TableCell>
         <TableCell>{position.security}</TableCell>
         <TableCell>{position.quantity}</TableCell>
         <TableCell align="right">
-          <IconButton onClick={() => setOpen(!open)} size="small">
+          <IconButton size="small" onClick={() => setOpen((o) => !o)}>
             {open ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
           </IconButton>
         </TableCell>
       </TableRow>
       <TableRow>
-        <TableCell colSpan={4} sx={{ paddingBottom: 0, paddingTop: 0 }}>
+        <TableCell colSpan={4} sx={{ p: 0 }}>
           <Collapse in={open} timeout="auto" unmountOnExit>
             <Box
               sx={{
-                margin: 2,
-                backgroundColor: "#f9f9f9",
-                borderRadius: 2,
                 p: 2,
+                backgroundColor: theme.palette.grey[50],
               }}
             >
-              <Typography variant="subtitle1" gutterBottom>
-                Trade Events
+              <Typography variant="subtitle2" gutterBottom>
+                Events
               </Typography>
-              <Divider sx={{ mb: 1 }} />
-              {!position.events || position.events.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  No events available
-                </Typography>
+              {!position.events?.length ? (
+                <Typography variant="body2">No events</Typography>
               ) : (
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>ID</TableCell>
-                      <TableCell>Action</TableCell>
-                      <TableCell>Quantity</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {position.events.map((event: TradeEvent) => (
-                      <TableRow key={event.uid}>
-                        <TableCell>{event.id}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={event.action}
-                            color={getChipColor(event.action)}
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell>{event.quantity}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <List disablePadding>
+                  {position.events.map((e: TradeEvent) => (
+                    <ListItem
+                      key={e.uid}
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        borderRadius: 1,
+                        mb: 1,
+                        py: 1,
+                        px: 2,
+                      }}
+                    >
+                      <Typography variant="body2">#{e.id}</Typography>
+                      <Chip
+                        label={e.action}
+                        color={color(e.action)}
+                        size="small"
+                      />
+                      <Typography variant="body2">{e.quantity}</Typography>
+                    </ListItem>
+                  ))}
+                </List>
               )}
             </Box>
           </Collapse>
@@ -125,6 +131,4 @@ const ExpandableRow: React.FC<{ position: Position }> = ({ position }) => {
       </TableRow>
     </>
   );
-};
-
-export default PositionTable;
+}

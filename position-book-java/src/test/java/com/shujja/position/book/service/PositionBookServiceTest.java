@@ -21,39 +21,39 @@ class PositionBookServiceTest {
     }
 
     @Test
-    void testBuyAndSellUpdatesQuantity() {
-        TradeEvent buy = new TradeEvent(null, Action.BUY, "ACC1", "SEC1", 100);
-        TradeEvent sell = new TradeEvent(null, Action.SELL, "ACC1", "SEC1", 30);
-
-        service.processEvents(List.of(buy, sell));
-        List<Position> positions = service.getAllPositions();
-
-        assertEquals(1, positions.size());
-        Position position = positions.get(0);
-        assertEquals("ACC1", position.getAccount());
-        assertEquals("SEC1", position.getSecurity());
-        assertEquals(70, position.getQuantity());
-        assertEquals(2, position.getEvents().size());
+    void sellMoreThanHeldShouldThrow() {
+        // buy 10 then attempt to sell 20
+        service.processEvents(List.of(new TradeEvent(null, Action.BUY, "A1", "S1", 10)));
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.processEvents(List.of(new TradeEvent(null, Action.SELL, "A1", "S1", 20)))
+        );
+        assertEquals("Insufficient quantity to SELL", ex.getMessage());
     }
 
     @Test
-    void testCancelReversesEvent() {
-        TradeEvent buy = new TradeEvent(null, Action.BUY, "ACC1", "SEC1", 50);
+    void cancelUnknownIdShouldThrow() {
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.processEvents(List.of(new TradeEvent(999, Action.CANCEL, "A1", "S1", 0)))
+        );
+        assertTrue(ex.getMessage().contains("No event found with ID"));
+    }
+
+    @Test
+    void cancelTwiceShouldThrow() {
+        TradeEvent buy = new TradeEvent(null, Action.BUY, "A1", "S1", 5);
         service.processEvents(List.of(buy));
+        int assignedId = service.getAllPositions().get(0).getEvents().get(0).getId();
 
-        // Capture the generated ID from the stored event
-        int generatedId = service.getAllPositions()
-                .get(0)
-                .getEvents()
-                .get(0)
-                .getId();
+        // first cancel
+        service.processEvents(List.of(new TradeEvent(assignedId, Action.CANCEL, "A1", "S1", 0)));
 
-        // Now cancel that event
-        TradeEvent cancel = new TradeEvent(generatedId, Action.CANCEL, "ACC1", "SEC1", 0);
-        service.processEvents(List.of(cancel));
-
-        Position position = service.getAllPositions().get(0);
-        assertEquals(0, position.getQuantity());
-        assertEquals(2, position.getEvents().size());
+        // second cancel of same ID
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.processEvents(List.of(new TradeEvent(assignedId, Action.CANCEL, "A1", "S1", 0)))
+        );
+        assertEquals("Cannot CANCEL a CANCEL event", ex.getMessage());
     }
 }
