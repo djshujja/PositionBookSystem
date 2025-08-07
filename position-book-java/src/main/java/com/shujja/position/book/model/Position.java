@@ -16,9 +16,8 @@ public class Position {
         this.quantity = 0;
         this.events = new ArrayList<>();
     }
-
-    public void applyEvent(TradeEvent event, int deltaQty) {
-        this.quantity += deltaQty;
+    public void applyEvent(TradeEvent event, int deltaQuantity) {
+        this.quantity += deltaQuantity;
         this.events.add(event);
     }
 

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { fetchPositions } from "../store/tradeSlicer";
 import PositionTable from "../components/PositionTable";
@@ -8,8 +8,13 @@ export default function PositionPage() {
   const dispatch = useAppDispatch();
   const { positions, loading, error } = useAppSelector((state) => state.trades);
 
+  const hasFetched = useRef(false);
+
   useEffect(() => {
-    dispatch(fetchPositions());
+    if (!hasFetched.current) {
+      dispatch(fetchPositions());
+      hasFetched.current = true;
+    }
   }, [dispatch]);
 
   return (
@@ -19,6 +24,7 @@ export default function PositionPage() {
         open={!!error}
         autoHideDuration={3000}
         message={error}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         onClose={() => {}}
       />
     </>

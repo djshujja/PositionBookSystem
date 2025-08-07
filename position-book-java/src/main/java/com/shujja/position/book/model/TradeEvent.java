@@ -1,28 +1,29 @@
 package com.shujja.position.book.model;
 
-import jakarta.validation.constraints.*;
-
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 
 public class TradeEvent {
 
-    @NotNull
-    private int id;
+    @NotNull(message = "ID is required for CANCEL", groups = CancelValidation.class)
+    private Integer id;
 
-    @NotNull
+    @NotNull(message = "Action is required")
     private Action action;
 
-    @NotBlank
+    @NotBlank(message = "Account is required")
     private String account;
 
-    @NotBlank
+    @NotBlank(message = "Security is required")
     private String security;
 
-    @PositiveOrZero
+    @PositiveOrZero(message = "Quantity must be zero or positive")
     private int quantity;
 
     public TradeEvent() {}
 
-    public TradeEvent(int id, Action action, String account, String security, int quantity) {
+    public TradeEvent(Integer id, Action action, String account, String security, int quantity) {
         this.id = id;
         this.action = action;
         this.account = account;
@@ -30,12 +31,12 @@ public class TradeEvent {
         this.quantity = quantity;
     }
 
-    public void setId(int id) {
-        this.id = id;
+    public Integer getId() {
+        return id;
     }
 
-    public int getId() {
-        return id;
+    public void setId(Integer id) {
+        this.id = id;
     }
 
     public Action getAction() {
@@ -69,4 +70,6 @@ public class TradeEvent {
     public void setQuantity(int quantity) {
         this.quantity = quantity;
     }
+
+    public interface CancelValidation {}
 }

@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import type { Position, TradeEvent } from "../types";
 import axios from "../api/axiosInstance";
-
 interface TradeState {
   positions: Position[];
   events: TradeEvent[];
@@ -16,23 +15,24 @@ const initialState: TradeState = {
   error: null,
 };
 
-// GET: Fetch positions
-export const fetchPositions = createAsyncThunk(
-  "trades/fetchPositions",
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await axios.get<Position[]>("/trades/positions");
-      return response.data;
-    } catch (err: any) {
-      return rejectWithValue("Failed to fetch positions");
-    }
+export const fetchPositions = createAsyncThunk<
+  Position[],
+  void,
+  { rejectValue: string }
+>("trades/fetchPositions", async (_, { rejectWithValue }) => {
+  try {
+    const response = await axios.get<{ Positions: Position[] }>(
+      "/trades/positions"
+    );
+    return response.data.Positions;
+  } catch (err: any) {
+    return rejectWithValue("Failed to fetch positions");
   }
-);
+});
 
-// POST: Submit one or more trades
 export const postTrade = createAsyncThunk<
-  TradeEvent[], // ✅ Return type: array of events
-  { events: TradeEvent[] }, // ✅ Accepts: { events: [...] }
+  TradeEvent[], // payload.events[]
+  { events: TradeEvent[] },
   { rejectValue: string }
 >("trades/postTrade", async (payload, { dispatch, rejectWithValue }) => {
   try {
@@ -50,6 +50,7 @@ const tradeSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
+      // FETCH POSITIONS
       .addCase(fetchPositions.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -58,13 +59,14 @@ const tradeSlice = createSlice({
         fetchPositions.fulfilled,
         (state, action: PayloadAction<Position[]>) => {
           state.loading = false;
-          state.positions = action.payload;
+          state.positions = action.payload; // now an array
         }
       )
       .addCase(fetchPositions.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
+      // POST TRADE
       .addCase(postTrade.rejected, (state, action) => {
         state.error = action.payload as string;
       })
@@ -76,5 +78,4 @@ const tradeSlice = createSlice({
       );
   },
 });
-
 export default tradeSlice.reducer;

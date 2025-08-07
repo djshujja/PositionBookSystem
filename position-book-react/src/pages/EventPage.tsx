@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -11,12 +11,13 @@ import {
   ToggleButton,
   InputLabel,
   FormControl,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { postTrade } from "../store/tradeSlicer";
-import { TradeAction, TradeEvent, Position } from "../types";
+import type { TradeAction, TradeEvent, Position } from "../types";
 
-// Extend TradeEvent with account + security
 interface CancelableEvent extends TradeEvent {
   account: string;
   security: string;
@@ -26,87 +27,120 @@ const EventPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const positions: Position[] = useAppSelector(
     (state) => state.trades.positions
-  ); // ✅ FIXED
-
+  );
   const [action, setAction] = useState<TradeAction>("BUY");
   const [account, setAccount] = useState("");
   const [security, setSecurity] = useState("");
   const [quantity, setQuantity] = useState<number>(0);
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
-  // 🔁 Flatten all events with their parent account/security
-  const allEvents: CancelableEvent[] = useMemo(() => {
-    return positions.flatMap((pos: Position) =>
-      (pos.events || []).map((event: TradeEvent) => ({
-        ...event,
-        account: pos.account,
-        security: pos.security,
-      }))
+  const [snackOpen, setSnackOpen] = useState(false);
+  const [snackMsg, setSnackMsg] = useState("");
+  const [snackSeverity, setSnackSeverity] = useState<"success" | "error">(
+    "success"
+  );
+
+  const allEvents: CancelableEvent[] = useMemo(
+    () =>
+      positions.flatMap((pos) =>
+        (pos.events || []).map((e) => ({
+          ...e,
+          account: pos.account,
+          security: pos.security,
+        }))
+      ),
+    [positions]
+  );
+
+  const canceledIds = useMemo(
+    () =>
+      new Set(allEvents.filter((e) => e.action === "CANCEL").map((e) => e.id)),
+    [allEvents]
+  );
+
+  const cancelableEvents = useMemo(
+    () =>
+      allEvents.filter(
+        (e) =>
+          (e.action === "BUY" || e.action === "SELL") && !canceledIds.has(e.id)
+      ),
+    [allEvents, canceledIds]
+  );
+
+  const accounts = useMemo(
+    () => Array.from(new Set(cancelableEvents.map((e) => e.account))),
+    [cancelableEvents]
+  );
+
+  const securities = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          cancelableEvents
+            .filter((e) => e.account === account)
+            .map((e) => e.security)
+        )
+      ),
+    [cancelableEvents, account]
+  );
+
+  const matchingEvents = useMemo(
+    () =>
+      cancelableEvents.filter(
+        (e) => e.account === account && e.security === security
+      ),
+    [cancelableEvents, account, security]
+  );
+
+  // Helper to find current position quantity
+  const availableQty = useMemo(() => {
+    const pos = positions.find(
+      (p) => p.account === account && p.security === security
     );
-  }, [positions]);
+    return pos?.quantity ?? 0;
+  }, [positions, account, security]);
 
-  // 🛑 Collect canceled event IDs
-  const canceledIds = useMemo(() => {
-    return new Set<number>(
-      allEvents.filter((e) => e.action === "CANCEL").map((e) => e.id)
-    );
-  }, [allEvents]);
+  const handleSubmit = async () => {
+    if (action === "SELL" && quantity > availableQty) {
+      setSnackMsg(`Cannot sell ${quantity}; only ${availableQty} available.`);
+      setSnackSeverity("error");
+      setSnackOpen(true);
+      return;
+    }
 
-  // ✅ Filter only BUY/SELL events not already canceled
-  const cancelableEvents: CancelableEvent[] = useMemo(() => {
-    return allEvents.filter(
-      (e) =>
-        (e.action === "BUY" || e.action === "SELL") && !canceledIds.has(e.id)
-    );
-  }, [allEvents, canceledIds]);
-
-  // 📌 Dropdown options
-  const accounts = useMemo(() => {
-    return Array.from(new Set(cancelableEvents.map((e) => e.account)));
-  }, [cancelableEvents]);
-
-  const securities = useMemo(() => {
-    return Array.from(
-      new Set(
-        cancelableEvents
-          .filter((e) => e.account === account)
-          .map((e) => e.security)
-      )
-    );
-  }, [cancelableEvents, account]);
-
-  const matchingEvents = useMemo(() => {
-    return cancelableEvents.filter(
-      (e) => e.account === account && e.security === security
-    );
-  }, [cancelableEvents, account, security]);
-
-  // 🚀 Submit trade (BUY, SELL, CANCEL)
-  const handleSubmit = () => {
+    // Build payload
     const payload: TradeEvent =
       action === "CANCEL"
         ? {
             id: selectedEventId!,
-            action: "CANCEL",
+            action,
             account,
             security,
             quantity: 0,
           }
         : {
-            id: 0, // placeholder, backend will assign
+            id: 0,
             action,
             account,
             security,
             quantity,
           };
 
-    dispatch(postTrade({ events: [payload] }));
-
-    // Reset form
-    setAccount("");
-    setSecurity("");
-    setQuantity(0);
-    setSelectedEventId(null);
+    try {
+      await dispatch(postTrade({ events: [payload] })).unwrap();
+      setSnackMsg("Event submitted successfully!");
+      setSnackSeverity("success");
+      setSnackOpen(true);
+      // reset form
+      setAccount("");
+      setSecurity("");
+      setQuantity(0);
+      setSelectedEventId(null);
+    } catch (err: any) {
+      setSnackMsg(err || "Submission failed");
+      setSnackSeverity("error");
+      setSnackOpen(true);
+    }
   };
 
   return (
@@ -123,8 +157,8 @@ const EventPage: React.FC = () => {
               setAction(newAction);
               setAccount("");
               setSecurity("");
-              setSelectedEventId(null);
               setQuantity(0);
+              setSelectedEventId(null);
             }
           }}
         >
@@ -138,8 +172,8 @@ const EventPage: React.FC = () => {
             <FormControl fullWidth>
               <InputLabel>Account</InputLabel>
               <Select
-                label="Account"
                 value={account}
+                label="Account"
                 onChange={(e) => setAccount(e.target.value)}
               >
                 {accounts.map((acc) => (
@@ -154,8 +188,8 @@ const EventPage: React.FC = () => {
               <FormControl fullWidth>
                 <InputLabel>Security</InputLabel>
                 <Select
-                  label="Security"
                   value={security}
+                  label="Security"
                   onChange={(e) => setSecurity(e.target.value)}
                 >
                   {securities.map((sec) => (
@@ -171,8 +205,8 @@ const EventPage: React.FC = () => {
               <FormControl fullWidth>
                 <InputLabel>Event to Cancel</InputLabel>
                 <Select
-                  label="Event to Cancel"
                   value={selectedEventId ?? ""}
+                  label="Event to Cancel"
                   onChange={(e) => setSelectedEventId(Number(e.target.value))}
                 >
                   {matchingEvents.map((e) => (
@@ -204,6 +238,12 @@ const EventPage: React.FC = () => {
               type="number"
               value={quantity}
               onChange={(e) => setQuantity(Number(e.target.value))}
+              error={action === "SELL" && quantity > availableQty}
+              helperText={
+                action === "SELL" && quantity > availableQty
+                  ? `Max available to sell is ${availableQty}`
+                  : ""
+              }
             />
           </>
         )}
@@ -213,13 +253,28 @@ const EventPage: React.FC = () => {
           onClick={handleSubmit}
           disabled={
             action === "CANCEL"
-              ? !(account && security && selectedEventId)
+              ? !(account && security && selectedEventId !== null)
               : !(account && security && quantity > 0)
           }
         >
           Submit
         </Button>
       </Box>
+
+      <Snackbar
+        open={snackOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackOpen(false)}
+          severity={snackSeverity}
+          sx={{ width: "100%" }}
+        >
+          {snackMsg}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };
