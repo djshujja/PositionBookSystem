@@ -1,4 +1,5 @@
 package com.shujja.position.book.service;
+
 import com.shujja.position.book.model.Action;
 import com.shujja.position.book.model.Position;
 import com.shujja.position.book.model.TradeEvent;
@@ -21,8 +22,8 @@ class PositionBookServiceTest {
 
     @Test
     void testBuyAndSellUpdatesQuantity() {
-        TradeEvent buy = new TradeEvent(0, Action.BUY, "ACC1", "SEC1", 100);
-        TradeEvent sell = new TradeEvent(1, Action.SELL, "ACC1", "SEC1", 30);
+        TradeEvent buy = new TradeEvent(null, Action.BUY, "ACC1", "SEC1", 100);
+        TradeEvent sell = new TradeEvent(null, Action.SELL, "ACC1", "SEC1", 30);
 
         service.processEvents(List.of(buy, sell));
         List<Position> positions = service.getAllPositions();
@@ -37,12 +38,17 @@ class PositionBookServiceTest {
 
     @Test
     void testCancelReversesEvent() {
-        TradeEvent buy = new TradeEvent(1, Action.BUY, "ACC1", "SEC1", 50);
+        TradeEvent buy = new TradeEvent(null, Action.BUY, "ACC1", "SEC1", 50);
         service.processEvents(List.of(buy));
 
-        // Get assigned ID
-        int generatedId = service.getAllPositions().get(0).getEvents().get(0).getId();
+        // Capture the generated ID from the stored event
+        int generatedId = service.getAllPositions()
+                .get(0)
+                .getEvents()
+                .get(0)
+                .getId();
 
+        // Now cancel that event
         TradeEvent cancel = new TradeEvent(generatedId, Action.CANCEL, "ACC1", "SEC1", 0);
         service.processEvents(List.of(cancel));
 

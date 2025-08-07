@@ -1,4 +1,5 @@
 package com.shujja.position.book.controller;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shujja.position.book.dto.TradeEventRequest;
 import com.shujja.position.book.model.Action;
@@ -13,7 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -30,8 +31,8 @@ class TradeEventControllerTest {
     void postTradeEventsAndGetPositions() throws Exception {
         TradeEventRequest request = new TradeEventRequest();
         request.setEvents(List.of(
-                new TradeEvent(0, Action.BUY, "ACC1", "SEC1", 100),
-                new TradeEvent(1, Action.SELL, "ACC1", "SEC1", 30)
+                new TradeEvent(null, Action.BUY, "ACC1", "SEC1", 100),
+                new TradeEvent(null, Action.SELL, "ACC1", "SEC1", 30)
         ));
 
         mockMvc.perform(post("/api/trades")
@@ -48,20 +49,20 @@ class TradeEventControllerTest {
     @Test
     void testValidationFailsOnInvalidData() throws Exception {
         String invalidRequest = """
-    {
-      "events": [
-        { "id": null, "action": "BUY", "account": "", "security": "", "quantity": -10 }
-      ]
-    }
-    """;
+        {
+          "events": [
+            { "id": null, "action": "BUY", "account": "", "security": "", "quantity": -10 }
+          ]
+        }
+        """;
 
         mockMvc.perform(post("/api/trades")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidRequest))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Validation failed"))
-                .andExpect(jsonPath("$.errors['events[0].account']").value("must not be blank"))
-                .andExpect(jsonPath("$.errors['events[0].security']").value("must not be blank"))
-                .andExpect(jsonPath("$.errors['events[0].quantity']").value("must be greater than or equal to 0"));
+                .andExpect(jsonPath("$.errors['events[0].account']").value("Account is required"))
+                .andExpect(jsonPath("$.errors['events[0].security']").value("Security is required"))
+                .andExpect(jsonPath("$.errors['events[0].quantity']").value("Quantity must be zero or positive"));
     }
 }
