@@ -1,6 +1,10 @@
+// src/types/index.ts
+
+/** Which actions are allowed */
 export type TradeAction = "BUY" | "SELL" | "CANCEL";
 
 export interface TradeEvent {
+  uid?: string;
   id: number | null;
   action: TradeAction;
   account: string;
@@ -20,8 +24,8 @@ export interface FormRow {
   action: TradeAction;
   account: string;
   security: string;
-  quantity: number; // used for BUY/SELL
-  cancelId: number | null; // used for CANCEL
+  quantity: number;
+  cancelId: number | null;
 }
 
 export interface CancelableEvent extends TradeEvent {

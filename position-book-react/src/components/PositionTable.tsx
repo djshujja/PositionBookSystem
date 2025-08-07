@@ -1,3 +1,5 @@
+// src/components/PositionTable.tsx
+
 import React, { useState } from "react";
 import {
   Table,
@@ -15,33 +17,34 @@ import {
   Divider,
 } from "@mui/material";
 import { KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material";
-import type { Position } from "../types";
+import type { Position, TradeEvent } from "../types";
 
 interface Props {
   positions: Position[];
 }
 
-const PositionTable: React.FC<Props> = ({ positions }) => {
-  return (
-    <TableContainer component={Paper} sx={{ mt: 3 }}>
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>Account</TableCell>
-            <TableCell>Security</TableCell>
-            <TableCell>Quantity</TableCell>
-            <TableCell align="right">Details</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {positions.map((pos, index) => (
-            <ExpandableRow key={index} position={pos} />
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
-};
+const PositionTable: React.FC<Props> = ({ positions }) => (
+  <TableContainer component={Paper} sx={{ mt: 3 }}>
+    <Table>
+      <TableHead>
+        <TableRow>
+          <TableCell>Account</TableCell>
+          <TableCell>Security</TableCell>
+          <TableCell>Quantity</TableCell>
+          <TableCell align="right">Details</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {positions.map((pos) => (
+          <ExpandableRow
+            key={`${pos.account}-${pos.security}`}
+            position={pos}
+          />
+        ))}
+      </TableBody>
+    </Table>
+  </TableContainer>
+);
 
 const ExpandableRow: React.FC<{ position: Position }> = ({ position }) => {
   const [open, setOpen] = useState(false);
@@ -86,7 +89,7 @@ const ExpandableRow: React.FC<{ position: Position }> = ({ position }) => {
                 Trade Events
               </Typography>
               <Divider sx={{ mb: 1 }} />
-              {position.events?.length === 0 || !position.events ? (
+              {!position.events || position.events.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
                   No events available
                 </Typography>
@@ -100,8 +103,8 @@ const ExpandableRow: React.FC<{ position: Position }> = ({ position }) => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {position.events.map((event) => (
-                      <TableRow key={event.id}>
+                    {position.events.map((event: TradeEvent) => (
+                      <TableRow key={event.uid}>
                         <TableCell>{event.id}</TableCell>
                         <TableCell>
                           <Chip
